@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ../src/frontend
+      dockerfile: ../../docker/containers/frontend/Dockerfile.dev
+    ports:
+     - 80
+    volumes:
+      - ../src/frontend:/app:rw
+    command: /bin/sh -c "bun i --force && pm2 start bun --name 'dev_server' -- run dev & pm2 logs & sleep inf"
+    restart: "no"

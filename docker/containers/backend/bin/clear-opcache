@@ -1,0 +1,11 @@
+#!/bin/bash
+
+export CONTAINER_USER="root"
+
+echo "Reloading opcache..."
+
+"$(dirname "$0")"/../../../bin/shell backend sudo /etc/init.d/apache2 reload
+
+"$(dirname "$0")"/../../../bin/shell backend curl -s localhost:80/index.php  > /dev/null
+
+echo "Opcache reloaded"

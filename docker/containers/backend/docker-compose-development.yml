@@ -1,0 +1,14 @@
+version: '3.7'
+
+services:
+  backend:
+    build:
+      args:
+        - WITH_XDEBUG=yes
+        - PHP_opcache_validate_timestamps=1
+    environment:
+      - APP_ENVIRONMENT=development
+    volumes:
+      - ../src/backend:/var/www/html/:rw
+      - ../persistent-data/xdebug-profile:/tmp/xdebug-profile:ro
+    restart: "no"

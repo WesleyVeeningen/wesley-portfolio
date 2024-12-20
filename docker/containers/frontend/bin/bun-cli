@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+CWD="--cwd /app/source"
+
+if [ -f "$(dirname "$0")"/../../../config/environment ]; then
+  source "$(dirname "$0")"/../../../config/environment
+fi
+
+if [ -f "$(dirname "$0")"/../../../config/environment.local ]; then
+  source "$(dirname "$0")"/../../../config/environment.local
+fi
+
+if [ "${ENVIRONMENT}" = 'development' ]; then
+  CWD="--cwd /app"
+fi
+
+shell frontend /usr/local/bin/bun "$@" $CWD

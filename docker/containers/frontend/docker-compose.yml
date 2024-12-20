@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ../src/frontend
+      dockerfile: ../../docker/containers/frontend/Dockerfile.prod
+    volumes:
+      - ../src/frontend:/app/source:ro
+    restart: always

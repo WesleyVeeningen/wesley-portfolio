@@ -1,0 +1,88 @@
+#!/bin/bash
+set -euo pipefail
+SRC_DIR="$(dirname "$0")"/../../../../src/
+INTERNAL_SRC_DIR=/var/www/html/
+YARN_LOCK_FILES=($(/usr/bin/find ${SRC_DIR} -name yarn.lock -path "*/custom/*" -not -path "*/node_modules/*" -not -path "*/core/*"))
+if [ ${#YARN_LOCK_FILES[@]} -eq 0 ]; then
+  echo 'No yarn.lock files found; cannot run yarn from outside container, use `shell` please.'
+  exit 1;
+fi
+
+# find --all in $@
+CMD_OPT=""
+for C in "${@}"; do
+  if [ "${C}" = "--all" ];then
+    SELECTED_FILE_INDEX=-1
+  else
+    CMD_OPT="${CMD_OPT} ${C}"
+  fi
+done
+
+if [ ${#YARN_LOCK_FILES[@]} -eq 1 ]; then
+  SELECTED_FILE_INDEX=0
+elif [ -z "${SELECTED_FILE_INDEX:-}" ]; then
+  options=(ALL)
+  for F in "${YARN_LOCK_FILES[@]}"; do
+    options+=($(dirname ${F#$SRC_DIR}))
+  done
+  PS3="Select a working directory for yarn: "
+  select opt in "${options[@]}"; do
+    case $REPLY in
+    [0-9]*)
+      SELECTED_FILE_INDEX=$((--REPLY))
+      SELECTED_FILE_INDEX=$((--SELECTED_FILE_INDEX))
+      if [ ${SELECTED_FILE_INDEX} -gt -2 ] && [ ${SELECTED_FILE_INDEX} -lt ${#YARN_LOCK_FILES[@]} ]; then
+        break;
+      fi
+      echo "Invalid option."
+    ;;
+    *)
+      echo "Invalid option."
+    ;;
+    esac
+  done
+fi
+
+# Hold the proces ids (needed for error handling)
+pids=()
+
+loopItem () {
+  CWD=${3}$(dirname ${1#$SRC_DIR})
+  echo "Running in $(dirname ${1#$SRC_DIR})"
+  "$(dirname "$0")"/../../../bin/shell web /usr/bin/yarn --cache-folder=".yarn-cache" --cwd ${CWD} $2
+}
+
+if [ ${SELECTED_FILE_INDEX} -eq -1 ]; then
+  if [[ "$@" == *"--no-parallel"* ]]; then
+    # Old way of doing yarn, in case something breaks or the device running yarn cannot handle parallel
+    for F in "${YARN_LOCK_FILES[@]}"; do
+      CWD=${INTERNAL_SRC_DIR}$(dirname ${F#$SRC_DIR})
+      echo ""
+      echo "Running in $(dirname ${F#$SRC_DIR})"
+      OPT=${CMD_OPT//"--no-parallel"/}
+      "$(dirname "$0")"/../../../bin/shell web /usr/bin/yarn --cwd ${CWD} $OPT
+    done
+  else
+    echo "Running yarn in parallel (use option --no-parallel to disable parallelism)"
+    for F in "${YARN_LOCK_FILES[@]}"; do loopItem "$F" "$CMD_OPT" "$INTERNAL_SRC_DIR" & pids+=($!)
+    done
+  fi
+else
+  CWD=${INTERNAL_SRC_DIR}$(dirname ${YARN_LOCK_FILES[${SELECTED_FILE_INDEX}]#$SRC_DIR})
+  "$(dirname "$0")"/../../../bin/shell web /usr/bin/yarn --cwd ${CWD} $CMD_OPT
+fi
+
+# Wait for child processes
+for pid in "${pids[@]}"; do
+  if wait -n; then
+    :
+  else
+    # If any child proces fails immediately kill all child processes and exit with the exit code
+    exit_code=$?
+    echo "Process exited with $exit_code, killing other processes now."
+    for pid in "${pids[@]}"; do
+      kill -9 "$pid" 2> /dev/null || :
+    done
+    exit "$exit_code"
+  fi
+done

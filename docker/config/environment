@@ -1,0 +1,21 @@
+#!/bin/bash
+PROJECT_NAME="wesley-portfolio"
+
+## Don't uncomment. Use a environment.local file!
+#  (copy this file and name it environment.local)
+
+## Set the environment
+#  This setting will load automaticly all docker-compose-$ENVIRONMENT.yml
+#  files, found in the docker/ folder.
+ENVIRONMENT="production"
+
+## Extra Docker files to load.
+#  If you cannot load the correct yaml files with the environment variable,
+#  you can load more docker-compose.yml files with this variable. The root folder
+#  for this variable is the docker/ folder, files are seperated by a semicolon.
+# EXTRA_DOCKER_COMPOSE_FILES="docker-compose-development.yml;docker-compose-xdebug.yml"
+
+## Local domain extension
+#  When we need to create a domainname it is build up like this:
+#  <service_name_container>.$PROJECT_NAME.$LOCAL_DOMAIN_EXTENSTION
+LOCAL_DOMAIN_EXTENSTION="vdmi"

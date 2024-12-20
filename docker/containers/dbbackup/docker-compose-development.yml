@@ -1,0 +1,7 @@
+version: '3.7'
+
+services:
+  dbbackup:
+    environment:
+      - BACKUP_INTERVAL_HOURS=1
+    restart: "no"

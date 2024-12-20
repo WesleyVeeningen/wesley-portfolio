@@ -1,0 +1,11 @@
+diff --git a/assets/scaffold/files/htaccess b/assets/scaffold/files/htaccess
+index 4031da47..e13dc781 100644
+--- a/assets/scaffold/files/htaccess
++++ b/assets/scaffold/files/htaccess
+@@ -184,3 +184,6 @@ AddEncoding gzip svgz
+   # Disable Proxy header, since it's an attack vector.
+   RequestHeader unset Proxy
+ </IfModule>
++
++RewriteCond $0 !=/favicon.php
++RewriteRule ^favicon.ico$  /favicon.php [L]

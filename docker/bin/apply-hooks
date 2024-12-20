@@ -1,0 +1,50 @@
+#!/bin/bash
+source "$(dirname "$0")"/../config/environment
+
+if [ -f "$(dirname "$0")"/../config/environment.local ]; then
+  source "$(dirname "$0")"/../config/environment.local
+fi
+
+if [ "${#@}" -gt 0 ]; then
+  HOOK_NAME=$1
+fi
+
+if [ -z "${HOOK_NAME:-}" ]; then
+  echo "Please supply a hook name."
+  exit 1
+fi 
+(
+  # Get lock
+  set +e
+  flock -n 201
+  if [ "$?" -ne 0 ] ; then 
+    echo "Could not aquire lock. (/tmp/${PROJECT_NAME}-hook-${ENVIRONMENT}-${HOOK_NAME}.lock)"
+    exit 1
+  fi
+  set -euo pipefail
+
+  cd "$(dirname "$0")"/../../
+  # Get hook files, sorted on basename
+  HOOK_FILES=($(/usr/bin/find docker/containers/*/hooks/ -name "*.${HOOK_NAME}.sh" -not -path "docker/containers/_*" -not -name "_*" -printf '%f\t%p\n' | sort -k1 | cut -d$'\t' -f2));
+  
+  if [ ${#HOOK_FILES[@]} -eq 0 ]; then
+    echo "Nothing to apply for hook ${HOOK_NAME}";
+    exit 0
+  fi
+
+  # Source the hook files (no exec, to preserve environment).
+  echo "Applying hook ${HOOK_NAME} files:"
+  for (( ic=0; ic<${#HOOK_FILES[@]}; ic++ )); do
+    HOOK_FILE="${HOOK_FILES[$ic]}"
+    echo " - ${HOOK_FILE}"
+    source "${HOOK_FILE}"
+  done
+  echo "Applying done."
+
+) 201>/tmp/${PROJECT_NAME}-hook-${ENVIRONMENT}-${HOOK_NAME}.lock
+RETVAL=$?
+# Remove lock file
+if [ $RETVAL -eq 0 ]; then 
+  rm -f /tmp/${PROJECT_NAME}-hook-${ENVIRONMENT}-${HOOK_NAME}.lock
+fi
+exit $RETVAL

@@ -1,0 +1,9 @@
+version: '3.7'
+
+services:
+  web:
+    links:
+      - mailhog:mailhog
+    environment:
+      - SMTPSERVER=mailhog
+      - APP_ENVIRONMENT=staging

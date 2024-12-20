@@ -1,0 +1,71 @@
+#!/bin/bash
+
+source "$(dirname "$0")"/../config/environment
+
+if [ -f "$(dirname "$0")"/../config/environment.local ]; then
+    source "$(dirname "$0")"/../config/environment.local
+fi
+CMD="$@"
+if [ "${#@}" -gt 0 ]; then
+  SERVICES=$("$(dirname "$0")"/docker-compose config --services)
+  if [ ! -z "$(echo ${SERVICES}|grep $1)" ]; then
+    SELECTED_SERVICE=$1
+    CMD="${@:2}"
+  fi
+fi
+SELECTED_ENVFILE=
+DEFAULT_ENVFILE=
+cd "$(dirname "$0")"/../../
+for ENVFILE in $(/usr/bin/find "docker/containers/" -name shell.env -not -path "docker/containers/_*"); do
+  if [ -z "${SELECTED_SERVICE-}" ]; then
+    if [ ! -z $(grep "IS_DEFAULT_SERVICE=y" "${ENVFILE}") ]; then
+      if [ ! -z "${DEFAULT_ENVFILE-}" ]; then
+        echo "Config error: Multiple default services, that is weird"
+        exit 1;
+      else
+        DEFAULT_ENVFILE="${ENVFILE}"
+      fi
+    fi
+  else
+    if [ ! -z $(grep "SERVICE=${SELECTED_SERVICE}" "${ENVFILE}") ]; then
+       SELECTED_ENVFILE="${ENVFILE}"
+    fi
+  fi
+done
+if [ ! -z "${SELECTED_ENVFILE-}" ]; then
+  source "${SELECTED_ENVFILE}"
+else
+  if [ ! -z "${DEFAULT_ENVFILE-}" ]; then
+    source "${DEFAULT_ENVFILE}"
+  fi
+fi
+if [ -z "${SERVICE-}" ]; then
+  SERVICE="${SELECTED_SERVICE-}"
+fi
+if [ -z "${CMD-}" ]; then
+  CMD="${DEFAULT_CMD-}"
+fi
+USER_STR=
+if [ ! -z "${CONTAINER_USER-}" ];then
+  USER_STR="--user $CONTAINER_USER "
+fi
+WD_STR=
+if [ ! -z "${WORKDIR-}" ];then
+  WD_STR="--workdir $WORKDIR "
+fi
+
+## Sanity check.
+if [ -z "${SERVICE-}" ]; then
+  echo "No service found"
+  exit 1
+fi
+if [ -z "${CMD-}" ]; then
+  echo "No command found"
+  exit 1
+fi
+
+if [[ "$CMD" == "/usr/bin/yarn"* ]]; then
+  "$(dirname "$0")"/docker-compose exec -T $WD_STR$USER_STR$SERVICE env TERM=xterm-256color $CMD
+else
+  "$(dirname "$0")"/docker-compose exec $WD_STR$USER_STR$SERVICE $CMD
+fi

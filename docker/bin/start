@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ "${#@}" -gt 0 ]; then
+  SERVICES=$("$(dirname "$0")"/docker-compose config --services)
+  tmp_services=()
+  for service in "$@"; do
+    if [ -z "$(echo ${SERVICES}|grep $service)" ]; then
+      echo -e $service": \e[31mno such service found\e[0m"
+    else
+      tmp_services+=($service)
+    fi
+  done
+  if [ ! -z "${tmp_services-}" ]; then
+    SERVICES="${tmp_services[@]}"
+  else
+    exit 1
+  fi
+fi
+
+
+"$(dirname "$0")"/docker-compose up -d ${SERVICES-}
+echo ""
+echo "Checking status of containers..."
+"$(dirname "$0")"/status ${SERVICES-}

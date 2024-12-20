@@ -1,0 +1,10 @@
+version: '3.7'
+
+services:
+  db:
+    image: mariadb:11.3.2
+    env_file:
+      - ./config/mysql.local.env
+    volumes:
+      - ../persistent-data/mariadb:/var/lib/mysql/
+    restart: always

@@ -1,0 +1,73 @@
+#!/bin/bash
+
+source "$(dirname "$0")"/../config/environment
+
+if [ -f "$(dirname "$0")"/../config/environment.local ]; then
+    source "$(dirname "$0")"/../config/environment.local
+fi
+
+check_for_services=()
+check_for_one_service=0
+for arg in "$@"
+do
+    if [ "$arg" == "--one-service" ] || [ "$arg" == "-os" ]
+    then
+        check_for_one_service=1
+    else
+        check_for_services+=($arg)
+    fi
+done
+
+#"$(dirname "$0")"/docker-compose config > tmp.yq.yaml
+
+#function yq {
+#  docker run --rm -i -v ${PWD}:/workdir mikefarah/yq yq $@
+#}
+
+#SERVICES=$(yq r tmp.yq.yaml --printMode p 'services.*'|sed 's/services.//g')
+#rm tmp.yq.yaml
+
+
+SERVICES=$("$(dirname "$0")"/docker-compose config --services)
+if [ "${#check_for_services[@]}" -gt 0 ]; then
+  tmp_services=()
+  for service in "${check_for_services[@]}"; do
+    if [ -z "$(echo ${SERVICES}|grep $service)" ]; then
+      echo -e $service": \e[31mno such service found\e[0m"
+    else
+      tmp_services+=($service)
+    fi
+  done
+  SERVICES="${tmp_services[@]}"
+fi
+
+running_containers=`docker ps -q --no-trunc`
+not_running_services=0
+running_services=0
+for service in ${SERVICES}; do
+    container_id=$("$(dirname "$0")"/docker-compose ps -q $service)
+    if [ -z "$([[ -z ${container_id} ]] || echo ${running_containers} | grep ${container_id})" ]; then
+        not_running_services=$(($not_running_services + 1))
+        status="\e[31mstopped\e[0m"
+    else
+        running_services=$(($running_services + 1))
+        status="\e[32mrunning\e[0m"
+    fi
+    echo -e $service.${PROJECT_NAME}.$LOCAL_DOMAIN_EXTENSTION" -> "$status
+    if [ $check_for_one_service -eq 1 ]; then
+        break;
+    fi
+done
+
+if [ "$not_running_services" -eq 0 ] && [ "$running_services" -gt 0 ]; then
+    echo -e "\e[33m====\e[0m"
+    echo -e "\e[32mFound $running_services services running. All seems to be ok.\e[0m"
+    echo -e "\e[33m====\e[0m"
+    exit 0;
+fi
+if [ "$not_running_services" -gt 0 ] || [ "$running_services" -lt 1 ]; then
+    echo -e "\e[33m====\e[0m"
+    echo -e "\e[31mFound $not_running_services services not running. That seems not ok.\e[0m"
+    echo -e "\e[33m====\e[0m"
+    exit 1;
+fi

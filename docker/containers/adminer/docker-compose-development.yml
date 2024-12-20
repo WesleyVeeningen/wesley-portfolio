@@ -1,0 +1,11 @@
+version: '3.7'
+
+services:
+  adminer:
+    build:
+      context: ./containers/adminer/
+    env_file:
+      - ./config/mysql.local.env
+    links:
+      - db:db
+    restart: "no"

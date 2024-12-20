@@ -1,0 +1,83 @@
+#!/bin/bash
+
+set -eo pipefail
+
+# Don't run as root.
+if [ $(id -u) = 0 ]; then
+  echo "Don't run this script as user root."
+  exit 1
+fi
+
+# init exists, it is weird to install before init.
+if [ -f "$(dirname "$0")"/project-init ]; then
+  echo "You did not init the project. Do you mean 'project-init'."
+  exit 1;
+fi
+
+# Run once or die trying.
+if [ -f "$(dirname "$0")"/../../install.lock ]; then
+  echo "Install script allready runned."
+  exit 1;
+fi
+
+# You realy need direnv.
+if [ ! -x "$(command -v direnv)" ]; then
+  echo "Install direnv."
+  echo "See: https://direnv.net/docs/installation.html"
+  echo "Example: sudo apt install direnv"
+  exit 1
+fi
+
+source "$(dirname "$0")"/../config/environment
+
+# Welcome the user.
+echo "Welcome. Let's install project ${PROJECT_NAME}."
+echo ""
+
+# Ask user for the environment.
+echo "First, select a environment for this install."
+unset options
+options=(development staging production)
+PS3="Select the environment: "
+
+select opt in "${options[@]}"; do
+  case $opt in
+  "development"|"staging"|"production")
+    ENV=$opt
+  break
+  ;;
+  *)
+    echo "Invalid option."
+  ;;
+  esac
+done
+
+# Lets lock after user input.
+touch "$(dirname "$0")"/../../install.lock
+
+# Create persistent-data folder
+if [ ! -d "$(dirname "$0")"/../../persistent-data ]; then
+  mkdir "$(dirname "$0")"/../../persistent-data
+  chmod 755 "$(dirname "$0")"/../../persistent-data
+fi
+
+# Write environment.local
+rm -rf "$(dirname "$0")"/../config/environment.local
+touch "$(dirname "$0")"/../config/environment.local
+if [ "${ENV}" != 'production' ]; then
+  echo "ENVIRONMENT=${ENV}" >> "$(dirname "$0")"/../config/environment.local
+fi
+if [ "${ENV}" != 'development' ]; then
+  echo "LOCAL_DOMAIN_EXTENSTION=docker" >> "$(dirname "$0")"/../config/environment.local
+fi
+
+echo ""
+# Apply install hooks.
+"$(dirname "$0")"/apply-hooks install
+
+echo ""
+echo "All done."
+echo ""
+echo "Use command 'start' to start the project."
+echo "Happy hacking! Bye!"
+exit 0

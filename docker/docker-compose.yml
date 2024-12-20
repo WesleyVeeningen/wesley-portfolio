@@ -1,0 +1,5 @@
+version: '3.7'
+
+# this files needs to be here to have a start point for relative
+# paths. You can find the docker-compose.yml files in the containers/
+# folder.

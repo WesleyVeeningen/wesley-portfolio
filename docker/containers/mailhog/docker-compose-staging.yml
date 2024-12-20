@@ -1,0 +1,17 @@
+version: '3.7'
+
+services:
+  mailhog:
+    image: mailhog/mailhog:latest
+    user: root
+    environment:
+      - VIRTUAL_PORT=8025
+      - MH_SMTP_BIND_ADDR=0.0.0.0:25
+    restart: always
+#LINKED_SERVICES_START
+  web:
+    links:
+      - mailhog:mailhog
+    environment:
+      - SMTPSERVER=mailhog
+#LINKED_SERVICES_END

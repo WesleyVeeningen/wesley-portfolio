@@ -1,0 +1,4 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+*/15 * * * * /usr/bin/drush -r /var/www/html cron >> /var/log/cron.log 2>&1

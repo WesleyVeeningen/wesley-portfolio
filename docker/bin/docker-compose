@@ -1,0 +1,86 @@
+#!/bin/bash
+
+set -eo pipefail
+
+# Don't run as root.
+if [ $(id -u) = 0 ]; then
+   echo "Don't run this script as user root."
+   exit 1
+fi
+
+# Must be installed..
+if [ ! -f "$(dirname "$0")"/../../install.lock ]; then
+  echo "Not installed. Please use install first. (Or missing install.lock)"
+  exit 1
+fi
+
+# We pass this to some docker containers during build phase.
+# That is also why we don't want to run this script as root.
+export HOST_USER_ID=$(id -u)
+export HOST_GROUP_ID=$(id -g)
+
+ARGS="$@"
+export PATH=/snap/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+source "$(dirname "$0")"/../config/environment
+
+if [ -f "$(dirname "$0")"/../config/environment.local ]; then
+    source "$(dirname "$0")"/../config/environment.local
+fi
+
+if [ ${PROJECT_NAME} == 'projectname-replaceme' ]; then
+   echo "You use '${PROJECT_NAME}' as project name. Are you sure you did your project init work?"
+   echo "I refuse... till you did your part!"
+   exit 1
+fi
+
+cd "$(dirname "$0")"/../../
+
+# Reset var Docker Compose Files
+DOCKER_COMPOSE_FILES=""
+
+# Find docker-compose.yml files and add to string; don't include containers starting with _
+for DCFILE in $(/usr/bin/find docker/containers/ -name docker-compose.yml -not -path "docker/containers/_*"); do
+    if [ -f "${DCFILE}" ];then
+        DOCKER_COMPOSE_FILES="${DOCKER_COMPOSE_FILES} -f ${DCFILE}"
+    else
+        echo "${DCFILE} not found."
+        exit 1;
+    fi
+done
+
+# Find docker-compose-${ENVIRONMENT}.yml files and add to string; don't include containers starting with _
+if [ ! -z "${ENVIRONMENT}" ];then
+    for DCFILE in $(/usr/bin/find docker/containers/ -name docker-compose-${ENVIRONMENT}.yml -not -path "docker/containers/_*"); do
+        if [ -f "${DCFILE}" ];then
+            DOCKER_COMPOSE_FILES="${DOCKER_COMPOSE_FILES} -f ${DCFILE}"
+        else
+            echo "${DCFILE} not found."
+            exit 1;
+        fi
+    done
+fi
+
+# Find the EXTRA_DOCKER_COMPOSE_FILES and add to string
+if [ ! -z "${EXTRA_DOCKER_COMPOSE_FILES}" ];then
+    for DCFILE in ${EXTRA_DOCKER_COMPOSE_FILES//;/ }; do
+        if [ -f "docker/${DCFILE}" ];then
+            DOCKER_COMPOSE_FILES="${DOCKER_COMPOSE_FILES} -f docker/${DCFILE}"
+        else
+            echo "docker/${DCFILE} not found."
+            exit 1;
+        fi
+    done
+fi
+
+# Test which version of docker compose is used
+COMPOSE_ARGS="--project-directory docker/ --project-name ${PROJECT_NAME} -f docker/docker-compose.yml ${DOCKER_COMPOSE_FILES} $ARGS"
+set -u
+if hash docker-compose &> /dev/null
+then
+    set -eo pipefail
+    docker-compose $COMPOSE_ARGS
+else
+    set -eo pipefail
+    docker compose $COMPOSE_ARGS
+fi

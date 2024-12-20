@@ -1,0 +1,1 @@
+[[ ! -d src ]] && mkdir src

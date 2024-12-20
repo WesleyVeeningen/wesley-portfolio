@@ -1,0 +1,5 @@
+PROJECT_BRANCH="development"
+PROJECT_COMMIT="6ba35aec9466ebcdb4314c3273a27fa3a17d0476"
+PROFILE="drupal-10.yml"
+SELECTED_CONTAINERS="mailhog db adminer web dbbackup"
+IGNORED_CONTAINERS="solr"

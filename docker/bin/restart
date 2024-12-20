@@ -1,0 +1,12 @@
+#!/bin/bash
+
+OUTPUT=`"$(dirname "$0")"/status -os`
+
+if [ $? -ne 0 ]; then
+  echo 'No restart, project was not running'
+else
+  "$(dirname "$0")"/docker-compose restart $@
+  echo ""
+  echo "Checking status of containers..."
+  "$(dirname "$0")"/status
+fi

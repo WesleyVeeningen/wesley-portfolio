@@ -1,0 +1,11 @@
+# WIP!
+remotes:
+  staging:
+    hostname: "host-pur-acc.vdmi.nl"
+    directory: "/home/cicd/purmerend.nl"
+    change_user_to: "cicd"
+  production:
+    hostname: "host-pur-prod.vdmi.nl"
+    directory: "/home/cicd/purmerend.nl"
+    user: "test"
+#default: production

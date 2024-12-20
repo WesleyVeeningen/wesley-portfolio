@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+"$(dirname "$0")"/../../../bin/docker-compose stop db
+"$(dirname "$0")"/../../../bin/docker-compose exec --user root dbbackup /opt/backup-scripts/rm-files.sh $@
+"$(dirname "$0")"/../../../bin/docker-compose up -d db
+"$(dirname "$0")"/../../../bin/docker-compose exec --user developer dbbackup /opt/backup-scripts/restore.sh $@

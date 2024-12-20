@@ -1,0 +1,5 @@
+#!/bin/bash
+
+ln -sf /underconstruction/underconstruction.conf /etc/apache2/conf-enabled/underconstruction.conf
+
+apache2ctl -k graceful

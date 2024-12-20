@@ -1,0 +1,69 @@
+#!/bin/bash
+source "$(dirname "$0")"/../config/environment
+
+if [ -f "$(dirname "$0")"/../config/environment.local ]; then
+  source "$(dirname "$0")"/../config/environment.local
+fi
+(
+  # Get lock
+  set +e
+  flock -n 200
+  if [ "$?" -ne 0 ] ; then 
+    echo "Could not aquire lock. (/tmp/${PROJECT_NAME}-deploy-${ENVIRONMENT}.lock)"
+    exit 1
+  fi
+  set -euo pipefail
+  
+  # Must be installed..
+  if [ ! -f "$(dirname "$0")"/../../install.lock ]; then
+    echo "Not installed. Please install first. (Or missing install.lock)"
+    exit 1
+  fi
+
+  "$(dirname "$0")"/apply-hooks before-deploy
+
+  # Select branche
+  # Either from argument or by environment.
+  if [ "${#@}" -gt 0 ]; then
+    BRANCHE=$1
+  else
+    BRANCHE=master
+    if [ "${ENVIRONMENT}" = 'staging' ]; then
+      BRANCHE=staging
+    fi
+    if [ "${ENVIRONMENT}" = 'development' ]; then
+      BRANCHE=development
+    fi
+  fi
+
+  # Checkout repo, fail on a changed files
+  cd "$(dirname "$0")"/../../
+  echo -ne "Checking for changed files..."
+  git diff --quiet
+  echo "ok (no changed files)"
+  echo -ne "Checking for untracked files..."
+  UNTRACKED_FILES=`git ls-files -o --exclude-standard| wc -l`
+  if [ $UNTRACKED_FILES -ne 0 ]; then
+    exit 1;
+  fi
+  echo "ok (no untracked files)"
+  git fetch --all
+  git checkout -f $BRANCHE
+  git merge --ff-only
+
+  docker/bin/build
+  docker/bin/start
+
+  "$(dirname "$0")"/apply-hooks after-deploy
+
+) 200 > /tmp/${PROJECT_NAME}-deploy-${ENVIRONMENT}.lock
+RETVAL=$?
+# Remove lock file
+echo ""
+if [ $RETVAL -ne 0 ]; then 
+  echo "--- deploy failed ---"
+else
+  echo "--- deploy succesfull ---"
+  rm -f /tmp/${PROJECT_NAME}-deploy-${ENVIRONMENT}.lock
+fi
+exit $RETVAL
